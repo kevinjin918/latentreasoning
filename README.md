@@ -1,25 +1,37 @@
 # latentreasoning
 
-Grounding-gated latent reasoning for medical vision models.
+Latent (non-verbal) reasoning for medical vision models: reasoning as iterated computation in latent space, instead of generated chain-of-thought text.
 
-**Thesis.** Latent reasoning models are efficient but opaque, and can confabulate: as a model "thinks" longer, it can drift from image evidence toward its prior. This project builds a latent reasoning loop that **stops when it stops looking at the image**, and a **per-step readout** of whether each reasoning step is driven by evidence or by prior.
+## Why latent reasoning over chain-of-thought
 
-## The idea in one line
+Verbalized CoT reasons by emitting tokens. It is slow (one forward pass per token), bottlenecked through language (every step must be expressible in words), and discrete (each step commits to a word). Latent reasoning iterates a hidden state instead:
 
-Standard reasoning halts on *confidence*. This halts on *groundedness*, because a confidently-confabulating model is exactly the failure confidence cannot see.
+- adaptive depth without the per-token cost,
+- can hold uncertainty across steps rather than collapsing to words,
+- not constrained to language-expressible reasoning.
 
-- **Groundedness** = counterfactual dependence of the answer on the image (occlude the region, does the answer change?).
-- **Measured at runtime** by running two synchronized streams, one with the evidence and one with the region occluded, and watching the gap between them across reasoning depth.
-- **Halting rule** (2 axes): keep reasoning while steps still pull in image evidence; stop the moment the answer keeps moving but the movement is no longer image-driven (confabulation onset); abstain in the ungrounded cases.
+The price of latent reasoning is opacity: you lose the readable trace. Making it legible and controllable is the project.
+
+## Mechanism
+
+```
+frozen encoder -> shared-weight recurrent block (iterated T times in latent space) -> head
+```
+
+Adaptive halting picks T per case (think longer on hard cases, stop early on easy ones).
+
+## The control lens: groundedness
+
+Latent reasoning can drift toward the model's prior as it iterates. So halting is gated on **groundedness** (does the answer still depend on the image?) rather than confidence, with a per-step readout of whether each step is evidence-driven or prior-driven. Details in `docs/PROPOSAL.md`.
 
 ## Status
 
-Early. Repo scaffolding + proposal. First experiment is the premise/measurement probe (see `docs/PROPOSAL.md`), which reuses tooling from the sister repo `tracecxr`.
+Early: scaffolding + proposal. First experiment is the premise/measurement probe (`docs/PROPOSAL.md`), reusing tooling from the sister repo `tracecxr`.
 
 ## Layout
 
 ```
-docs/PROPOSAL.md      the current proposal (mechanism, plan, honest novelty)
+docs/PROPOSAL.md      mechanism, plan, honest novelty
 src/latentreasoning/  package
 tests/                mock-first tests (no GPU/weights by default)
 ```
@@ -33,8 +45,8 @@ pytest        # mock-first, no GPU/data required
 ruff check .
 ```
 
-Secrets live in `.env` (gitignored: Redivis + Anthropic tokens, copied from `tracecxr`).
+Secrets live in `.env` (gitignored, copied from `tracecxr`).
 
 ## Relationship to tracecxr
 
-`tracecxr` (sister repo) is the prior mechanistic-interp work on medical-VLM hallucination. Its occlusion / no-image / attention-attribution tooling is what makes the groundedness measurement here possible. This repo is the separate, forward-looking latent-reasoning project. Kept distinct on purpose.
+`tracecxr` (sister repo) is the prior mechanistic-interp work on medical-VLM hallucination; its occlusion / attention-attribution tooling powers the groundedness readout here. This is the separate, forward-looking project, kept distinct on purpose.
