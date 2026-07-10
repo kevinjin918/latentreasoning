@@ -13,9 +13,10 @@ torch / transformers are imported lazily so importing this package is offline.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-from latentreasoning.core.config import MODELS, cache_root
+from latentreasoning.core.config import MODELS
 from latentreasoning.core.types import CXRRecord, Finding, ModelOutput
 
 #: Findings probed per record (the CheXpert pathologies with occlusion/gaze ground truth).
@@ -110,7 +111,8 @@ class HFVLMAdapter:
         if self.device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
-        cache_dir = str(cache_root() / "models")
+        # None -> use HF's default cache (HF_HOME); override with LR_HF_CACHE if needed.
+        cache_dir = os.environ.get("LR_HF_CACHE")
         self._processor = AutoProcessor.from_pretrained(self.model_id, cache_dir=cache_dir)
         self._model = AutoModelForImageTextToText.from_pretrained(
             self.model_id, dtype=dtype, cache_dir=cache_dir
