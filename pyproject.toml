@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,19 +7,39 @@ name = "latentreasoning"
 version = "0.0.1"
 description = "Grounding-gated latent reasoning for medical vision models"
 requires-python = ">=3.11"
-dependencies = []
+# Thin core: everything heavy (torch/transformers, dataset loaders) is an optional extra so
+# CI stays light. The mock-first suite needs only these.
+dependencies = ["numpy>=1.26", "pillow>=10.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+# Real VLM adapters + the latent block (lazy-imported, never touched in CI).
+models = ["torch", "torchvision", "transformers", "accelerate"]
+# Dataset loaders + download scripts.
+data = ["pandas", "huggingface_hub", "datasets"]
+# What CI installs.
+dev = ["pytest>=8", "pytest-cov", "ruff>=0.6", "mypy"]
+
+[project.scripts]
+latentreasoning = "latentreasoning.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]
 
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "requires_gpu: needs a GPU / real weights (set LR_RUN_GPU=1)",
+    "requires_data: needs a real dataset (set LR_RUN_DATA=1)",
+]

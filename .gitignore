@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# dry-run smoke artifacts (regenerable)
+results/*dryrun*.json
+
+.DS_Store
