@@ -24,6 +24,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+import latentreasoning.models  # noqa: F401,E402  (registers medgemma/chexone adapters)
 from latentreasoning.core.mock import MockVLM  # noqa: E402
 from latentreasoning.core.model import get_model  # noqa: E402
 from latentreasoning.core.types import BBox, CXRRecord, Finding, Label  # noqa: E402
@@ -68,10 +69,12 @@ def load_records(limit: int) -> list[tuple[CXRRecord, Finding]]:
     return bbox_records(ChestXray14Dataset(), limit=limit)
 
 
-def run(model_name: str, records: list[tuple[CXRRecord, Finding]], fill: float) -> dict:
-    model = MockVLM(report_prior=(Finding.EFFUSION,)) if model_name == "mock" else get_model(
-        model_name
-    )
+def run(model_name: str, records: list[tuple[CXRRecord, Finding]], fill: float,
+        max_new_tokens: int = 768) -> dict:
+    if model_name == "mock":
+        model = MockVLM(report_prior=(Finding.EFFUSION,))
+    else:
+        model = get_model(model_name, max_new_tokens=max_new_tokens)
     rows = []
     for rec, finding in records:
         s = stream_predictions(model, rec, finding, fill=fill)
@@ -99,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="offline MockVLM smoke")
     p.add_argument("--limit", type=int, default=200)
     p.add_argument("--fill", type=float, default=0.0)
+    p.add_argument("--max-new-tokens", type=int, default=768)
     args = p.parse_args(argv)
 
     if args.dry_run:
@@ -106,8 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         model_name, records = args.model, load_records(args.limit)
 
-    log(f"phase0: model={model_name} n={len(records)}")
-    result = run(model_name, records, args.fill)
+    log(f"phase0: model={model_name} n={len(records)} max_new_tokens={args.max_new_tokens}")
+    result = run(model_name, records, args.fill, max_new_tokens=args.max_new_tokens)
     log("summary:", json.dumps(result["summary"], indent=2))
 
     RESULTS.mkdir(exist_ok=True)
