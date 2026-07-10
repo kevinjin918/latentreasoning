@@ -60,13 +60,12 @@ def synthetic_records() -> list[tuple[CXRRecord, Finding]]:
 def load_records(limit: int) -> list[tuple[CXRRecord, Finding]]:
     """Real records with radiologist boxes (NIH ChestX-ray14 bbox subset).
 
-    TODO(Milestone B): vendor scripts/download_nih.py + a chestxray14 loader that yields
-    (record, boxed_finding) pairs for the ~801 bbox records. Until then the GPU run needs
-    that loader; use --dry-run for the offline pipeline smoke.
+    Needs the dataset on disk under ``data_root()/chestxray14`` (run
+    ``scripts/download_nih.py --full`` on the box first).
     """
-    raise NotImplementedError(
-        "NIH bbox loader not vendored yet (Milestone B). Run with --dry-run for the smoke."
-    )
+    from latentreasoning.data.chestxray14 import ChestXray14Dataset, bbox_records  # noqa: PLC0415
+
+    return bbox_records(ChestXray14Dataset(), limit=limit)
 
 
 def run(model_name: str, records: list[tuple[CXRRecord, Finding]], fill: float) -> dict:
